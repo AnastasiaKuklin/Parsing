@@ -15,7 +15,6 @@ def get_airport_data(iata_code):
     for link in iata_section.find_all('a', href=True):
         if link.text.strip() == first_letter:
             letter_link = link['href']
-            print(letter_link)
             break
     
     if not letter_link:
@@ -28,6 +27,9 @@ def get_airport_data(iata_code):
 
     # Найдите таблицу с IATA-кодами
     table = soup.find('table', {'class': 'wikitable sortable'})
+    
+    airport_name = None
+    location = None
 
     # Найдите строку, содержащую нужный IATA-код
     airport_link = None
@@ -35,10 +37,12 @@ def get_airport_data(iata_code):
         cells = row.find_all('td')
         if cells and cells[0].get_text(strip=True) == iata_code:
             airport_link = cells[2].find('a')['href']
-            break
+            airport_name = cells[2].get_text(strip=True)
+            location = cells[3].get_text(strip=True)
+            break 
     
     if not airport_link:
-        return None, None, None
+        return None, None, None, None, None
 
     # Перейдите на страницу аэропорта
     airport_url = f"{base_url}{airport_link}"
@@ -49,7 +53,7 @@ def get_airport_data(iata_code):
     info_table = soup.find('table', {'class': 'infobox'})
 
     if not info_table:
-        return None, None, None
+        return None, None, None, None, None
 
     airport_type = None
     passengers = None
@@ -69,9 +73,8 @@ def get_airport_data(iata_code):
             header_text = header.get_text(strip=True)
             if 'Statistics' in header_text:
                 year = header_text
-                print(year)
-
-    return airport_type, passengers, year
+                
+    return airport_type, passengers, year, airport_name, location
 
 def process_excel(input_file, output_file):
     df = pd.read_excel(input_file)
@@ -79,16 +82,24 @@ def process_excel(input_file, output_file):
     airport_types = []
     passengers = []
     years = []
+    airport_names = []
+    location = []
+    
 
     for iata_code in df['IATA']:
-        airport_type, passenger_stat, year_stat = get_airport_data(iata_code)
+        airport_type, passenger_stat, year_stat, airport_name, location_stat = get_airport_data(iata_code)
         airport_types.append(airport_type)
         passengers.append(passenger_stat)
         years.append(year_stat)
+        airport_names.append(airport_name)
+        location.append(location_stat)
+
 
     df['Airport Type'] = airport_types
     df['Passengers'] = passengers
     df['Year'] = years
+    df['Airport name'] = airport_names
+    df['Location'] = location
 
     df.to_excel(output_file, index=False)
 
