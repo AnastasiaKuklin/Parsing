@@ -65,8 +65,11 @@ def get_airport_data(iata_code):
                 airport_type = cell_text
             elif 'Passengers' in header_text:
                 passengers = cell_text
-            elif 'Statistics as of' in header_text:
-                year = cell_text
+        elif header:
+            header_text = header.get_text(strip=True)
+            if 'Statistics' in header_text:
+                year = header_text
+                print(year)
 
     return airport_type, passengers, year
 
