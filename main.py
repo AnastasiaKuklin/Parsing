@@ -18,7 +18,7 @@ def get_airport_data(iata_code):
             break
     
     if not letter_link:
-        return None, None, None
+        return None, None, None, None, None
 
     # Перейдите на страницу с IATA-кодами, начинающимися на эту букву
     letter_url = f"{base_url}{letter_link}"
@@ -73,7 +73,8 @@ def get_airport_data(iata_code):
             header_text = header.get_text(strip=True)
             if 'Statistics' in header_text:
                 year = header_text
-                
+    
+    print('1')           
     return airport_type, passengers, year, airport_name, location
 
 def process_excel(input_file, output_file):
