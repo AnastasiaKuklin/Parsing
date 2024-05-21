@@ -11,9 +11,11 @@ def get_airport_data(iata_code):
     # Найдите ссылку на страницу с соответствующей буквой алфавита
     first_letter = iata_code[0].upper()
     letter_link = None
-    for link in soup.find_all('a', href=True):
+    iata_section = soup.find('span', {'id': 'By_IATA_code'}).find_next('div', {'class': 'hlist'})
+    for link in iata_section.find_all('a', href=True):
         if link.text.strip() == first_letter:
             letter_link = link['href']
+            print(letter_link)
             break
     
     if not letter_link:
