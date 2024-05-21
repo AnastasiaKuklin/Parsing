@@ -1,12 +1,18 @@
 import pandas as pd
-import requests
+import aiohttp
+import asyncio
 from bs4 import BeautifulSoup
 
-def get_airport_data(iata_code):
-    base_url = "https://en.wikipedia.org"
+base_url = "https://en.wikipedia.org"
+
+async def fetch(session, url):
+    async with session.get(url) as response:
+        return await response.text()
+
+async def get_airport_data(session, iata_code):
     url = f"{base_url}/wiki/Lists_of_airports_by_IATA_and_ICAO_code#By_IATA_code"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    response = await fetch(session, url)
+    soup = BeautifulSoup(response, 'html.parser')
 
     # Найдите ссылку на страницу с соответствующей буквой алфавита
     first_letter = iata_code[0].upper()
@@ -22,8 +28,8 @@ def get_airport_data(iata_code):
 
     # Перейдите на страницу с IATA-кодами, начинающимися на эту букву
     letter_url = f"{base_url}{letter_link}"
-    response = requests.get(letter_url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    response = await fetch(session, letter_url)
+    soup = BeautifulSoup(response, 'html.parser')
 
     # Найдите таблицу с IATA-кодами
     table = soup.find('table', {'class': 'wikitable sortable'})
@@ -46,14 +52,14 @@ def get_airport_data(iata_code):
 
     # Перейдите на страницу аэропорта
     airport_url = f"{base_url}{airport_link}"
-    response = requests.get(airport_url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    response = await fetch(session, airport_url)
+    soup = BeautifulSoup(response, 'html.parser')
 
     # Найдите таблицу с информацией об аэропорте
     info_table = soup.find('table', {'class': 'infobox'})
 
     if not info_table:
-        return None, None, None, None, None
+        return None, None, None, airport_name, location
 
     airport_type = None
     passengers = None
@@ -74,37 +80,37 @@ def get_airport_data(iata_code):
             if 'Statistics' in header_text:
                 year = header_text
     
-    print('1')           
     return airport_type, passengers, year, airport_name, location
 
-def process_excel(input_file, output_file):
+async def process_excel(input_file, output_file):
     df = pd.read_excel(input_file)
 
     airport_types = []
     passengers = []
     years = []
     airport_names = []
-    location = []
-    
+    locations = []
 
-    for iata_code in df['IATA']:
-        airport_type, passenger_stat, year_stat, airport_name, location_stat = get_airport_data(iata_code)
-        airport_types.append(airport_type)
-        passengers.append(passenger_stat)
-        years.append(year_stat)
-        airport_names.append(airport_name)
-        location.append(location_stat)
+    async with aiohttp.ClientSession() as session:
+        tasks = [get_airport_data(session, iata_code) for iata_code in df['IATA']]
+        results = await asyncio.gather(*tasks)
 
+        for airport_type, passenger_stat, year_stat, airport_name, location_stat in results:
+            airport_types.append(airport_type)
+            passengers.append(passenger_stat)
+            years.append(year_stat)
+            airport_names.append(airport_name)
+            locations.append(location_stat)
 
     df['Airport Type'] = airport_types
     df['Passengers'] = passengers
     df['Year'] = years
     df['Airport name'] = airport_names
-    df['Location'] = location
+    df['Location'] = locations
 
     df.to_excel(output_file, index=False)
 
 if __name__ == '__main__':
     input_file = 'input.xlsx'
     output_file = 'output.xlsx'
-    process_excel(input_file, output_file)
+    asyncio.run(process_excel(input_file, output_file))
