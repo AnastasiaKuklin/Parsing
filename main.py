@@ -27,14 +27,14 @@ def get_airport_data(iata_code):
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Найдите таблицу с IATA-кодами
-    table = soup.find('table', {'class': 'wikitable'})
+    table = soup.find('table', {'class': 'wikitable sortable'})
 
     # Найдите строку, содержащую нужный IATA-код
     airport_link = None
     for row in table.find_all('tr'):
         cells = row.find_all('td')
         if cells and cells[0].get_text(strip=True) == iata_code:
-            airport_link = cells[1].find('a')['href']
+            airport_link = cells[2].find('a')['href']
             break
     
     if not airport_link:
